@@ -1,0 +1,34 @@
+{
+    "name": "pxt-qbuild",
+    "description": "BBC Micro:bit MakeCode extension for Q:build",
+    "license": "MIT",
+    "dependencies": {
+        "core": "*",
+        "microphone": "*",
+        "pxt-serial2": "github:imq-open/pxt-serial2"
+    },
+    "files": [
+        "qbuild.ts",
+        "README.md"
+    ],
+    "testFiles": [
+        "test.ts",
+        "main.ts",
+        "main.blocks"
+    ],
+    "public": true,
+    "supportedTargets": [
+        "microbit"
+    ],
+    "targetVersions": {
+        "branch": "v7.0.51",
+        "tag": "v7.0.51",
+        "commits": "https://github.com/microsoft/pxt-microbit/commits/c3819f016bd720d0eb86efea9a84dcd4fc7b2e1f",
+        "target": "7.0.51",
+        "pxt": "11.1.5"
+    },
+    "preferredEditor": "blocksprj",
+    "disablesVariants": [
+        "mbdal"
+    ]
+}
