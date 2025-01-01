@@ -16,4 +16,8 @@ Q:build 仅支持 Micro:bit V2.
 
 ## API
 
-请阅读 [入门教程](./doc/Get_Started_cn.md) 和 [API 参考](./doc/api/index.html). 
+请阅读 [入门教程](./doc/Get_Started_cn.md) 和 [API 参考](./doc/api/TODO.md). 
+
+另外也请参考此 repository 中的示例程序, 例如:
+
+* [hello.ts](./hello.ts)

@@ -23,7 +23,11 @@ This repository can be added as an **extension** in MakeCode.
 
 ## API Usage
 
-Read the [Getting Started Guide](./doc/Get_Started.md) and the [API Reference](./doc/api/index.html).
+Read the [Get Started Guide](./doc/Get_Started.md) and the [API Reference](./doc/api/TODO.md).
+
+Also have a look at some of the example programs such as: 
+
+* [hello.ts](./hello.ts)
 
 
 ## License
