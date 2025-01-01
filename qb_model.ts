@@ -33,12 +33,17 @@ namespace qbuild {
 
     export namespace _model {
 
-        export const MAX_MODE_CNT = 16
-        export const MAX_COMBI_CNT = 8
-        export const MAX_MODE_NAME_LEN = 11
+        export enum Consts {
 
-        export const ModeDataType_MIN = ModeDataType.INT8
-        export const ModeDataType_MAX = ModeDataType.FLOAT
+            MAX_MODE_CNT = 16,
+            MAX_COMBI_CNT = 8,
+            MAX_MODE_NAME_LEN = 11,
+            MAX_MODE_UNIT_LEN = 4,
+            MAX_MODE_DATA_SIZE = 32,
+
+            ModeDataType_MIN = ModeDataType.INT8,
+            ModeDataType_MAX = ModeDataType.FLOAT,
+        }
 
         export class ModeInfo {
 
@@ -57,6 +62,18 @@ namespace qbuild {
             }
 
             data: number[]
+
+            constructor() {
+                this.index = 0
+                this.name = ""
+                this.fmt = {
+                    item_cnt: 1,
+                    item_type: ModeDataType.INT8,
+                    width: 4,
+                    dp: 0,
+                }
+                this.data = [0]
+            }
         }
 
         export interface CombiItem {
@@ -64,7 +81,7 @@ namespace qbuild {
             data_item_index: number
         }
 
-        export class CombiConfig {
+        export interface CombiConfig {
             index: number
             items: CombiItem[]
         }
@@ -75,44 +92,63 @@ namespace qbuild {
             modes: ModeInfo[];
             fw_ver: number;
             hw_ver: number;
+            /**
+             * 16-bit bitmap for Mode 0, reported to hub during info stage
+             */
             combi: number;
 
             selected_mode: number;
-            combi_config: CombiConfig[];
+            private combi_configs: CombiConfig[];
+
+            constructor() {
+                this.id = 0
+                this.modes = []
+                this.fw_ver = 0x10000000
+                this.hw_ver = 0x10000000
+                this.combi = 0
+
+                this.selected_mode = 0
+                this.combi_configs = []
+            }
 
             getCombi(index: number): CombiConfig {
-                if (index < 0 || index >= this.combi_config.length) {
+                if (index < 0 || index >= this.combi_configs.length) {
                     return null
                 }
-                return this.combi_config[index]
+                return this.combi_configs[index]
             }
 
             removeCombi(index: number): boolean {
-                if (index < 0 || index >= this.combi_config.length) {
+                if (index < 0 || index >= this.combi_configs.length) {
                     return false
                 }
-                if (this.combi_config[index]) {
-                    this.combi_config[index] = null
+                if (this.combi_configs[index]) {
+                    this.combi_configs[index] = null
                     return true
                 }
-                return false
+                return true
             }
 
-            setCombi(index: number, combi: CombiConfig): boolean {
-                if (index < 0 || index >= MAX_COMBI_CNT) { return false }
+            setCombi(index: number, /* combi: CombiConfig */ items: CombiItem[]): boolean {
+                if (index < 0 || index >= Consts.MAX_COMBI_CNT) { return false }
 
-                if (index < this.combi_config.length) {
-                    this.combi_config[index] = combi
+                let combi = {
+                    index: index,
+                    items: items,
+                }
+
+                if (index < this.combi_configs.length) {
+                    this.combi_configs[index] = combi
                 } else {
-                    for (let i = this.combi_config.length; i < index; i++) {
-                        this.combi_config.push(null)
+                    for (let i = this.combi_configs.length; i < index; i++) {
+                        this.combi_configs.push(null)
                     }
-                    this.combi_config.push(combi)
+                    this.combi_configs.push(combi)
                 }
 
                 return true
             }
-        }
+        } // class DeviceInfo
 
         export function createDefaultDevice(): DeviceInfo {
 
@@ -120,14 +156,11 @@ namespace qbuild {
 
             d.id = 0xab
 
-            let m = createDefaultMode()
-            d.modes = [m]
-
-            d.fw_ver = 0x10000000
-            d.hw_ver = 0x10000000
-            d.combi = 0
-
-            d.combi_config = []
+            do {
+                let m = createDefaultMode()
+                // d.modes = [m]
+                d.modes.push(m)
+            } while (false)
 
             return d
         }
@@ -139,14 +172,14 @@ namespace qbuild {
             m.index = index
             m.name = "M" + index
             m.unit = ""
-            m.fmt = {
-                item_cnt: 1,
-                item_type: ModeDataType.INT8,
-                width: 3,
-                dp: 0,
-            }
+            // m.fmt = {
+            //     item_cnt: 1,
+            //     item_type: ModeDataType.INT8,
+            //     width: 3,
+            //     dp: 0,
+            // }
 
-            m.data = [0]
+            // m.data = [0]
 
             return m
         }
@@ -165,6 +198,8 @@ namespace qbuild {
         export const device: DeviceInfo = createDefaultDevice()
 
     } // namespace _model
+
+    import Consts = _model.Consts
 
     const device = _model.device
 
@@ -269,7 +304,7 @@ namespace qbuild {
     //% mode.min=0 mode.max=15 mode.defl=0
     export function setDefaultMode(mode: number) {
         mode = Math.floor(mode)
-        if (mode < 0 || mode >= _model.MAX_MODE_CNT) {
+        if (mode < 0 || mode >= Consts.MAX_MODE_CNT) {
             return
         }
 
@@ -287,7 +322,7 @@ namespace qbuild {
 
         count = Math.floor(count)
 
-        if (count < 1 || count > _model.MAX_MODE_CNT) {
+        if (count < 1 || count > Consts.MAX_MODE_CNT) {
             return
         }
 
@@ -308,7 +343,8 @@ namespace qbuild {
     }
 
     /**
-     *  Set combi of device. The combi is a 16-bit bitmap (0 - 0xffff)
+     *  Set combi of device. The combi is a 16-bit bitmap (0 - 0xffff), that
+     * is reported to hub as part of Mode 0 info
      */
     //% blockId=qbuild_set_combi block="Q:build|set combi $combi"
     //% group="Device" advanced=true
@@ -339,8 +375,8 @@ namespace qbuild {
 
         let m = device.modes[index]
 
-        if (name && name.length > 11) {
-            m.name = name.substr(0, 11)
+        if (name && name.length > Consts.MAX_MODE_NAME_LEN) {
+            m.name = name.substr(0, Consts.MAX_MODE_NAME_LEN)
         } else {
             m.name = name ? name : ""
         }
@@ -375,13 +411,15 @@ namespace qbuild {
         item_count = Math.floor(item_count)
         if (item_count < 1) {
             item_count = 1
-        } else if (item_count > 8) {
-            item_count = 8
         }
 
-        if ((0 + item_type) < _model.ModeDataType_MIN
-            || (0 + item_type) > _model.ModeDataType_MAX) {
-            item_type = ModeDataType.INT8
+        if ((0 + item_type) < Consts.ModeDataType_MIN || (0 + item_type) > Consts.ModeDataType_MAX) {
+            // item_type = ModeDataType.INT8
+            return
+        }
+
+        if (item_count * _model.sizeOfModeDataType(item_type) > Consts.MAX_MODE_DATA_SIZE) {
+            return
         }
 
         const MAX_WIDTH = 40
@@ -424,7 +462,7 @@ namespace qbuild {
     //% block="Q:build|set value of data item $data_item_index of mode $mode_index to $value"
     //% group="Mode"
     //% mode_index.min=0 mode_index.max=15
-    //% data_item_index.min=0 data_item_index.max=15
+    //% data_item_index.min=0 data_item_index.max=31
     export function setModeData(mode_index: number, data_item_index: number, value: number) {
         mode_index = Math.floor(mode_index)
         if (mode_index < 0 || mode_index >= device.modes.length) {
@@ -450,6 +488,7 @@ namespace qbuild {
     //% block="Q:build|value of data item $data_item_index of mode $mode_index"
     //% group="Mode"
     //% mode_index.min=0 mode_index.max=15
+    //% data_item_index.min=0 data_item_index.max=31
     export function getModeData(mode_index: number, data_item_index: number): number {
         mode_index = Math.floor(mode_index)
         if (mode_index < 0 || mode_index >= device.modes.length) {
@@ -482,12 +521,10 @@ namespace qbuild {
 
         let m = device.modes[index]
 
-        const MAX_LEN = 10
-
         if (!unit) {
             unit = ""
-        } else if (unit.length > MAX_LEN) {
-            unit = unit.substr(0, MAX_LEN)
+        } else if (unit.length > Consts.MAX_MODE_UNIT_LEN) {
+            unit = unit.substr(0, Consts.MAX_MODE_UNIT_LEN)
         }
 
         m.unit = unit

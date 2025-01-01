@@ -5,9 +5,9 @@
 
 This repository provides a BBC Micro:bit MakeCode extension for [Q:build](https://github.com/imq-open/qbuild). 
 Q:build is a Micro:bit add-on board that converts a Micro:bit into a sensor (or *device*) 
-that can be plugged into the Raspberry Pi Build HAT. 
-Q:build is designed and tested specifically for the Build HAT, but *should* 
-work with other hubs (controllers) as well. 
+that can be attached to the Raspberry Pi Build HAT. 
+Q:build is designed and tested specifically for Build HAT, but *should* 
+work with other hubs as well. 
 
 Q:build only supports Micro:bit V2.
 

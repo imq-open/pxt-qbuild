@@ -15,9 +15,9 @@
         "qb_misc.ts"
     ],
     "testFiles": [
-        "test.ts",
+        "main.blocks",
         "main.ts",
-        "main.blocks"
+        "hello.ts"
     ],
     "public": true,
     "targetVersions": {

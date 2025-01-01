@@ -37,8 +37,9 @@ namespace qbuild {
             FORMAT = 0x80,
         }
 
-        enum Consts {
+        export enum Consts {
             MODE_PLUS_8 = 0x20,
+            MAX_DATA_LEN = 1 << 7,
         }
 
         export class Msg {
@@ -183,7 +184,11 @@ namespace qbuild {
                 }
 
                 for (let i = 0; i < str.length; i++) {
-                    this.buf.setUint8(this.head_len + off + i, str.charCodeAt(i))
+                    let off1 = this.head_len + off + i
+                    if (off1 >= this.buf.length - 1) {
+                        break
+                    }
+                    this.buf.setUint8(off1, str.charCodeAt(i))
                 }
 
                 if (this.head_len + off + str.length < this.buf.length - 1) {

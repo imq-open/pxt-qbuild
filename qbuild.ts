@@ -20,7 +20,7 @@ declare const enum EventBusValue {
     //% blockIdentity="control.eventValueId"
     QBUILD_EVT_DISCONNECTED = 2,
     /**
-     * Data of Mode 0 written by remote (hub)
+     * Mode 0 written by remote (hub)
      */
     //% blockIdentity="control.eventValueId"
     QBUILD_EVT_M0_DATA_WRITTEN = 10,
@@ -74,10 +74,13 @@ namespace qbuild {
 
     import debug = _misc.debug
 
+    enum Consts {
+        RX_SEQ_MAX = 99999,
+        MAX_EXT_MODE_INTERVAL = 200,
+    }
+
     const tx_pin = pins.P13
     const rx_pin = pins.P14
-
-    const RX_SEQ_MAX = 99999
 
     const device = _model.device
     const msg_decoder = new _msg.MsgDecoder()
@@ -373,10 +376,15 @@ namespace qbuild {
 
             if (MsgType.CMD == msg_type && CmdType.EXT_MODE == sub_type) {
                 let mode = msg.getDataUint8(0)
-                this.ext_info = {
-                    t: input.runningTime(),
-                    seq: seq,
-                    mode: mode,
+
+                if (0 != mode && 8 != mode) {
+                    this.ext_info = null
+                } else {
+                    this.ext_info = {
+                        t: input.runningTime(),
+                        seq: seq,
+                        mode: mode,
+                    }
                 }
 
                 return
@@ -404,14 +412,14 @@ namespace qbuild {
                 if (!this.ext_info) { break }
 
                 let seq1 = this.ext_info.seq + 1
-                if (seq1 > RX_SEQ_MAX) {
+                if (seq1 > Consts.RX_SEQ_MAX) {
                     seq1 = 0
                 }
 
                 if (seq != seq1) { break }
 
                 let t = input.runningTime() - this.ext_info.t
-                if (t > 200) { break }
+                if (t > Consts.MAX_EXT_MODE_INTERVAL) { break }
 
                 mode += this.ext_info.mode
             } while (false)
@@ -419,6 +427,7 @@ namespace qbuild {
             if (0 <= mode && mode < device.modes.length) {
                 device.selected_mode = mode
             }
+            // setDefaultMode(mode)
         }
 
         private processMsg_WRITE(seq: number, msg: Msg) {
@@ -440,34 +449,59 @@ namespace qbuild {
                 mode_cnt = n1 & ~0x20
             } while (false)
 
+            // Return true since here ----
+
             const combi_index = msg.getDataUint8(1)
-            if (combi_index >= _model.MAX_COMBI_CNT) { return true }
+
+            // TODO:
+            // We're allowing more Combi's (possibly with holes) than modes
+
+            // if (combi_index >= device.modes.length) { return true }
+            if (combi_index >= _model.Consts.MAX_COMBI_CNT) { return true }
 
             if (2 == data_len) {
                 device.removeCombi(combi_index)
                 return true
             }
 
+            // debug("combi: " + mode_cnt + ", " + combi_index)
+
             let items: _model.CombiItem[] = []
 
-            for (let i = 2; i < mode_cnt; i++) {
-                let n1 = msg.getDataUint8(i)
-                let mode_idnex = n1 >> 4
+            for (let i = 0; i < mode_cnt; i++) {
+                let n1 = msg.getDataUint8(2 + i)
+                let mode_index = n1 >> 4
                 let off = 0xf & n1
-                if (mode_idnex >= device.modes.length) { return true }
-                let mode = device.modes[mode_idnex]
+                if (mode_index >= device.modes.length) { return true }
+                let mode = device.modes[mode_index]
                 if (off >= mode.fmt.item_cnt) { return true }
 
+                // debug("  #" + i + ": " + mode_index + ", " + off)
+
                 items.push({
-                    mode: mode_idnex,
+                    mode: mode_index,
                     data_item_index: off,
                 })
             } // for
 
-            device.setCombi(combi_index, {
-                index: combi_index,
-                items: items,
-            })
+            // Apply data size limit
+            do {
+                // To maximize usablility we'll allow the maximum data size a msg can carry
+                const MAX_SIZE = // _model.MAX_MODE_DATA_SIZE 
+                    _msg.Consts.MAX_DATA_LEN
+
+                let data_size = 0
+                for (let i of items) {
+                    let mode = device.modes[i.mode]
+                    data_size += _model.sizeOfModeDataType(mode.fmt.item_type)
+                }
+
+                if (data_size > MAX_SIZE) {
+                    return true
+                }
+            } while (false)
+
+            device.setCombi(combi_index, items)
 
             return true
         }
@@ -479,14 +513,14 @@ namespace qbuild {
                 if (!this.ext_info) { break }
 
                 let seq1 = this.ext_info.seq + 1
-                if (seq1 > RX_SEQ_MAX) {
+                if (seq1 > Consts.RX_SEQ_MAX) {
                     seq1 = 0
                 }
 
                 if (seq != seq1) { break }
 
                 let t = input.runningTime() - this.ext_info.t
-                if (t > 200) { break }
+                if (t > Consts.MAX_EXT_MODE_INTERVAL) { break }
 
                 mode += this.ext_info.mode
             } while (false)
@@ -565,9 +599,40 @@ namespace qbuild {
         private sendData() {
 
             let mode_index = device.selected_mode
-            if (mode_index >= device.modes.length) {
+
+            // if (mode_index >= device.modes.length) {
+            //     mode_index = 0
+            // }
+
+            // debug("sendData: " + mode_index)
+
+            let msg: Msg = null
+            do {
+
+                let combi = device.getCombi(mode_index)
+                if (combi && combi.items.length > 0) {
+                    msg = this.createDataMsg_combi(combi)
+                    break
+                }
+
+                if (mode_index < device.modes.length) {
+                    msg = this.createDataMsg_mode(device.modes[mode_index])
+                    break
+                }
+
+                // Fall back to #0 ---
+
                 mode_index = 0
-            }
+
+                combi = device.getCombi(0)
+                if (combi && combi.items.length > 0) {
+                    msg = this.createDataMsg_combi(combi)
+                    break
+                }
+
+                msg = this.createDataMsg_mode(device.modes[0])
+
+            } while (false)
 
             do {
                 let msg = _msg.createCmdMsg(CmdType.EXT_MODE, 1)
@@ -576,27 +641,13 @@ namespace qbuild {
                 serial2.writeBuffer(msg.buf)
             } while (false)
 
-            do {
-                let msg: Msg = null
-
-                let combi = device.getCombi(mode_index)
-                if (combi && combi.index == mode_index && combi.items.length > 0) {
-                    msg = this.createDataMsg_combi(combi)
-                } else {
-                    msg = this.createDataMsg_mode(device.modes[mode_index])
-                }
-
-                // msg.calcCrc()
-                serial2.writeBuffer(msg.buf)
-            } while (false)
-
+            // msg.calcCrc()
+            serial2.writeBuffer(msg.buf)
         }
 
         private createDataMsg_combi(combi: _model.CombiConfig): Msg {
 
-            const index = combi.index
             const items = combi.items
-            const cnt = items.length
 
             let size = 0
             for (let item of items) {
@@ -604,10 +655,10 @@ namespace qbuild {
                 size += _model.sizeOfModeDataType(mode.fmt.item_type)
             }
 
-            let msg = _msg.createDataMsg(index, size)
+            let msg = _msg.createDataMsg(combi.index, size)
 
             let off = 0
-            for (let i = 0; i < cnt; i++) {
+            for (let i = 0; i < items.length; i++) {
                 let item = items[i]
                 let mode = device.modes[item.mode]
                 let data = mode.data[item.data_item_index]
@@ -630,7 +681,7 @@ namespace qbuild {
                         break
                 } // switch
 
-            } // for 
+            } // for
 
             msg.calcCrc()
             return msg
@@ -685,7 +736,7 @@ namespace qbuild {
         let next = 0
         return function (): number {
             let seq = next++
-            if (next > RX_SEQ_MAX) {
+            if (next > Consts.RX_SEQ_MAX) {
                 next = 0
             }
             return seq
@@ -720,13 +771,11 @@ namespace qbuild {
         serial2.setRxBufferSize(SERIAL_BUF_SIZE)
         serial2.setTxBufferSize(SERIAL_BUF_SIZE)
 
-        control.onEvent(EventBusSource.SERIAL2_DEVICE_ID,
-            EventBusValue.SERIAL2_EVT_ERROR_BREAK,
+        control.onEvent(EventBusSource.SERIAL2_DEVICE_ID, EventBusValue.SERIAL2_EVT_ERROR_BREAK,
             onRxBreak
         )
 
-        control.onEvent(EventBusSource.SERIAL2_DEVICE_ID,
-            EventBusValue.SERIAL2_EVT_DATA_RECEIVED,
+        control.onEvent(EventBusSource.SERIAL2_DEVICE_ID, EventBusValue.SERIAL2_EVT_DATA_RECEIVED,
             onRxReady
         )
 

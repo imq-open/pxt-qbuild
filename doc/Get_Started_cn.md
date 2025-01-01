@@ -84,6 +84,9 @@ ID.
 设备 ID 和 Mode 是设备最重要的属性. 除此以外, 还有一些重要性相对较低的属性, 如硬件/固件版本等, 
 本文从略.
 
+Q:build 提供 `qbuild.setDeviceId()` 函数来设置设备 ID, `qbuild.setModeCount()` 来设置 Mode 数量.
+受协议所限, 最多支持 16 个 Mode.
+
 
 ### Mode
 
@@ -106,7 +109,9 @@ Mode, 每个 Mode 又包含 1 个或者多个*数据项*. 可以将每个 Mode �
 - Mode 2: 仅包含一个 1 字节的数据项, 允许的取值范围为 0 - 3, 代表预先定义的 4 个音频. 当 Hub
 更新 (写) 此 Mode 的值时, Micro:bit 将播放对应的音频
 
-除了数据类型和数据项个数, Mode 还有一些其它属性, 主要用于展示, 不影响主要功能, 例如: 
+在 Q:build 中, 我们使用 `qbuild.setModeName()`, `qbuild.setModeFmt()` 等等函数来配置 Mode. 使用 `qbuild.getModeData()` 和 `qbuild.setModeData()` 来访问 Mode 数据 (数据项).
+
+除了数据类型和数据项格式, Mode 还有一些其它属性, 主要用于展示, 不影响主要功能, 例如: 
 
 - 名称
 - 单位: 例如距离传感器的单位可为 "CM"
@@ -276,6 +281,26 @@ LED 屏上显示的表情变成数字 5, 这说明已经成功地建立了连接
 把 Q:build 从 Build HAT 端口拔出, Micro:bit LED 屏上将会显示表情图案 (如果同时通过 USB 供电的话). 重新插入端口, 很快就会显示数字,
 表示 Q:build 已再次建立了连接. 
 
+即使只有 1 个 Mode, Q:build 设备也支持 Combi. 我们执行下面的命令创建一个 Combi, 它包含 2 个重复的 Mode 0 数据: 
+
+```
+combi 0 0 0 0 0
+```
+
+执行 Select 操作后, Build HAT 输出内容会像这样: 
+
+```
+␊P0C0: +50 +50␍
+␊P0C0: +50 +50␍
+␊P0C0: +50 +50␍
+␊P0C0: +50 +50␍
+␊P0C0: +50 +50␍
+␊P0C0: +50 +50␍
+...
+```
+
+执行 `combi 0` (没有额外参数), 将会"删除"此 Combi.
+
 这就是一个简单不过然而完整的 Q:build 程序! 通过 Q:build API, 可以实现更加复杂的功能, 比如定义多个 Mode, 
 或者支持修改 Mode 数据. 基本上, 限制我们的除了想象力, 就只剩下 Micro:bit 的系统资源 (CPU, 内存, Flash 存储空间...)!
 
@@ -286,8 +311,7 @@ LED 屏上显示的表情变成数字 5, 这说明已经成功地建立了连接
 
 ### `write1` 及 `write2`
 
-Build HAT 提供了 `write1` 和 `write2` 命令, 用于直接向设备发送原始协议消息, 但是文档中没有说明这
-2 个命令的用法, 我这里补出.
+Build HAT 提供了 `write1` 和 `write2` 命令, 用于直接向设备发送原始协议消息, 但是文档的说明非常简略, 我这里详细说明一下. 
 
 `write1` 用于只有 1 个 header (消息头) 的消息, 而 `write2` 用于有 2 个 header 的消息 (INFO 消息). 
 命令格式是:
@@ -297,7 +321,7 @@ write1 header xx xx xx ...
 write2 header header2 xx xx xx ...
 ```
 
-其中, `header` 和 `header2` 是消息 header. `xx` 为十六进制字节 (无 `0x` 前缀), `xx xx xx ...` 是消息的完整 DATA 
+其中, `header` 和 `header2` 是消息 header, 不包含消息长度字段, Build HAT 将会自动设置. `xx` 为十六进制字节 (无 `0x` 前缀), `xx xx xx ...` 是消息的完整 DATA 
 字段, **不**含消息末尾的校验字节.
 
 DATA 字段的长度取决于具体的消息类型. 但是末尾的 0 字节可以省略, Build HAT 会自动根据协议要求补足.
