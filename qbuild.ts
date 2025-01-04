@@ -32,7 +32,7 @@ declare const enum EventBusValue {
  */
 //% weight=100 color=#0fbc11 icon=""
 //% block="Q:build"
-//% groups=["others", "Device", "Mode"]
+//% groups=["Device", "Mode", "others"]
 namespace qbuild {
 
     interface DeviceState {

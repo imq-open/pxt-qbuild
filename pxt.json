@@ -5,14 +5,16 @@
     "dependencies": {
         "core": "*",
         "microphone": "*",
-        "serial2": "github:imq-open/pxt-serial2#v1.0.0"
+        "serial2": "github:imq-open/pxt-serial2#v1.0.0",
+        "pxt-icm42670p": "github:imq-open/pxt-icm42670p#v1.0.0"
     },
     "files": [
         "qbuild.ts",
         "README.md",
         "qb_model.ts",
         "qb_msg.ts",
-        "qb_misc.ts"
+        "qb_misc.ts",
+        "qb_gyro.ts"
     ],
     "testFiles": [
         "main.blocks",
