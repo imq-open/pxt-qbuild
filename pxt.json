@@ -7,7 +7,7 @@
         "core": "*",
         "microphone": "*",
         "serial2": "github:imq-open/pxt-serial2#v1.0.0",
-        "pxt-icm42670p": "github:imq-open/pxt-icm42670p#v1.0.0"
+        "pxt-icm42670p": "github:imq-open/pxt-icm42670p#v1.1.0"
     },
     "files": [
         "qbuild.ts",
